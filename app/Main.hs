@@ -16,7 +16,7 @@ data Token = Number Float
            deriving (Show);
 
 data AST = Node Float
-         | OpNode Op Float Float
+         | OpNode Op AST AST
          deriving (Show);
 
 data OpMaybe = OpJust Op
@@ -53,6 +53,41 @@ lexer (x:xs)
   | otherwise = case isOp x of
     OpJust op -> Exp op:lexer xs
     OpNothing -> error "underfined token"
+
+parseToAst :: [Token] -> AST
+parseToAst ts =
+  let (ast, rest) = parseExpr ts
+  in case (rest) of
+    [EOF] -> ast
+    _ -> error "Unexpecter error while buliding AST"
+
+parseExpr :: [Token] -> (AST, [Token])
+parseExpr ts =
+  let (term, rest) = parseFac ts
+  in parseExpr' term rest
+
+parseExpr' :: AST -> [Token] -> (AST, [Token])
+parseExpr' lhs (Exp op:ts) =
+  let (rhs, rest) = parseTerm ts
+      nLhs = OpNode op lhs rhs
+  in parseExpr' nLhs rest
+parseExpr' ast ts = (ast, ts)
+
+parseTerm :: [Token] -> (AST, [Token])
+parseTerm t =
+  let (fac, rest) = parseFac t
+  in parseTerm' fac rest
+
+parseTerm' :: AST -> [Token] -> (AST, [Token])
+parseTerm' lhs (Exp Mul:ts) =
+  let (rhs, rest) = parseFac ts
+      nLhs = OpNode Mul lhs rhs
+  in parseTerm' nLhs rest
+parseTerm' lhs (Exp Div:ts) =
+  let (rhs, rest) = parseFac ts
+      nLhs = OpNode Div lhs rhs
+  in parseTerm' nLhs rest
+parseTerm' lhs ts = (lhs, ts)
 
 main :: IO ()
 main = do
