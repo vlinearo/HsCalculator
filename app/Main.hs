@@ -6,7 +6,7 @@ data Op = Inc
         | Dec
         | Mul
         | Div
-        deriving (Show);
+        deriving (Show, Eq);
 
 data Token = Number Float
            | Open
@@ -30,6 +30,14 @@ getOp x
   | x == '/' = Div
   | x == '*' = Mul
   | otherwise = error "underfined token"
+
+untokenOp :: Fractional a => Op -> a -> a -> a
+untokenOp (op)
+  | op == Inc = (+)
+  | op == Dec = (-)
+  | op == Mul = (*)
+  | op == Div = (/)
+  | otherwise = error "Unexpected token"
 
 isWp :: Char -> Bool
 isWp x = x `elem` [' ', '\n', '\t'];
@@ -89,7 +97,20 @@ parseTerm' lhs (Exp Div:ts) =
   in parseTerm' nLhs rest
 parseTerm' lhs ts = (lhs, ts)
 
+parseFac :: [Token] -> (AST, [Token])
+parseFac (Number n:ts) = (Node n, ts)
+parseFac (Open:ts) = let (ast, rest) = parseExpr ts
+                     in case rest of
+                      (Close:ts')-> (ast, ts')
+                      _          -> error "Unclosed ("
+parseFac ts = error $ "Unexpected token in" ++ show ts
+
+calculate :: AST -> Float
+calculate (Node num) = num
+calculate (OpNode op lhs rhs) = (untokenOp op) (calculate lhs) (calculate rhs)
+
 main :: IO ()
 main = do
-  inp <- getLine
-  putStrLn $ show $ lexer inp
+  putStrLn "--- C A L C U L A T O R ---"
+  inp <- lexer <$> getLine
+  putStrLn $ show $  calculate $ parseToAst inp
